@@ -1,5 +1,6 @@
 package com.sixlogs.smsapi
 
+import android.R.attr
 import android.accounts.AccountManager.get
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -38,12 +39,12 @@ import com.klinker.android.logger.Log.setLogListener
 
 import com.klinker.android.logger.OnLogListener
 import android.graphics.drawable.BitmapDrawable
-
-
-
-
-
-
+import java.io.ByteArrayOutputStream
+import java.io.FileInputStream
+import android.R.attr.path
+import android.renderscript.RenderScript
+import java.lang.Exception
+import java.net.URI
 
 
 class MainActivity : AppCompatActivity() {
@@ -151,14 +152,78 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleSendImage() {
-        if (imageToSend!!.isEnabled) {
+        openAttachement()
+   /*     if (imageToSend!!.isEnabled) {
             imageToSend!!.isEnabled = false
             imageToSend!!.alpha = 0.3f
         } else {
             imageToSend!!.isEnabled = true
             imageToSend!!.alpha = 1.0f
-        }
+        }*/
+
+
     }
+
+    private fun openAttachement() {
+
+        val pickIntnet = Intent()
+        pickIntnet.type = "audio/*"
+        pickIntnet.action = Intent.ACTION_GET_CONTENT
+        activityChooser.launch(pickIntnet)
+    }
+    var gelleryPath = ""
+    var fileUri : Uri ?= null
+    private var activityChooser: ActivityResultLauncher<Intent> =
+        registerForActivityResult<Intent, ActivityResult>(
+            ActivityResultContracts.StartActivityForResult(),
+            ActivityResultCallback<ActivityResult> {
+                // ToDO:
+                if (it.resultCode == AppCompatActivity.RESULT_OK) {
+                    val selectedImageUri: Uri? = it.data?.data
+                    if (selectedImageUri != null) {
+                        android.util.Log.e(TAG, ": $selectedImageUri ")
+                        try {
+                            fileUri = selectedImageUri
+                            val actualImagePath = FileUtils.getPath(this, selectedImageUri)
+                            val file = File(actualImagePath)
+                            //  binding.etContent.setText(file.name)
+                            if (actualImagePath != null) {
+                                gelleryPath = actualImagePath
+                            }
+                        }catch (ex : Exception){
+                            ex.printStackTrace()
+                        }
+
+
+
+
+                    } else {
+                     //   toast("Can't find image ")
+                    }
+
+                }
+            }
+        ) as ActivityResultLauncher<Intent>
+
+    @SuppressLint("Range")
+    fun getPath(uri: Uri?): String? {
+        var cursor: Cursor =
+            getContentResolver().query(uri!!, null, null, null, null)!!
+        cursor.moveToFirst()
+        var document_id = cursor.getString(0)
+        document_id = document_id.substring(document_id.lastIndexOf(":") + 1)
+        cursor.close()
+        cursor = getContentResolver().query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            null, MediaStore.Images.Media._ID + " = ? ", arrayOf(document_id), null
+        )!!
+        cursor.moveToFirst()
+        val path = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA))
+        cursor.close()
+        return path
+    }
+
+
     /* fun onViewClick(view: android.view.View) {
         when(view.id){
             R.id.bPickImg -> {
@@ -181,11 +246,37 @@ class MainActivity : AppCompatActivity() {
             sendSettings.useSystemSending = true
             val transaction = Transaction(this@MainActivity, sendSettings)
             val message = Message(messageField!!.text.toString(), toField!!.text.toString())
-            if (imageToSend!!.isEnabled) {
-                val imagbBitMap = (imageToSend!!.drawable as BitmapDrawable).bitmap
-                message.setImage(imagbBitMap)
-            }
+
+
+            val audioFileBytes = convertFileToByte(gelleryPath)
+        //    val messagePart =  Message.Part(audioFileBytes)
+               message.setAudio(audioFileBytes)
+      //    message.messageUri = fileUri
+//          if (imageToSend!!.isEnabled) {
+//               val imagbBitMap = (imageToSend!!.drawable as BitmapDrawable).bitmap
+//                message.setImage(imagbBitMap)*//*
+//            }
+
+
             transaction.sendNewMessage(message, Transaction.NO_THREAD_ID)
         }.start()
     }
+
+    private fun convertFileToByte(s: String): ByteArray {
+        val file = File(s)
+        val fis = FileInputStream(file)
+        val bos = ByteArrayOutputStream()
+        val b = ByteArray(1024)
+
+        var readNum: Int
+        while (fis.read(b).also { readNum = it } != -1) {
+            bos.write(b, 0, readNum)
+        }
+
+
+        val bytes: ByteArray = bos.toByteArray()
+        return bytes
+    }
+
+
 }
